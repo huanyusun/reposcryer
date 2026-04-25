@@ -172,6 +172,58 @@ fn graph_neighbors_shows_incoming_and_outgoing_file_dependencies() {
 }
 
 #[test]
+fn graph_summary_shows_kuzu_scope_counts() {
+    let dir = temp_sample_repo();
+
+    Command::cargo_bin("reposcryer-cli")
+        .expect("binary")
+        .arg("index")
+        .arg(dir.path())
+        .assert()
+        .success();
+
+    let mut command = Command::cargo_bin("reposcryer-cli").expect("binary");
+    let assert = command
+        .args(["graph", "summary"])
+        .arg(dir.path())
+        .assert()
+        .success();
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).expect("utf8");
+
+    assert!(stdout.contains("active_files: 3"));
+    assert!(stdout.contains("deleted_files: 0"));
+    assert!(stdout.contains("dependency_edges: 3"));
+    assert!(stdout.contains("latest_run_status: completed"));
+}
+
+#[test]
+fn graph_summary_json_outputs_structured_counts() {
+    let dir = temp_sample_repo();
+
+    Command::cargo_bin("reposcryer-cli")
+        .expect("binary")
+        .arg("index")
+        .arg(dir.path())
+        .assert()
+        .success();
+
+    let mut command = Command::cargo_bin("reposcryer-cli").expect("binary");
+    let assert = command
+        .args(["graph", "summary"])
+        .arg(dir.path())
+        .arg("--json")
+        .assert()
+        .success();
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).expect("utf8");
+    let value: Value = serde_json::from_str(&stdout).expect("valid json");
+
+    assert_eq!(value["active_files"], 3);
+    assert_eq!(value["deleted_files"], 0);
+    assert_eq!(value["dependency_edges"], 3);
+    assert_eq!(value["latest_run_status"], "completed");
+}
+
+#[test]
 fn impact_shows_reverse_file_dependencies() {
     let dir = temp_sample_repo();
 

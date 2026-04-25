@@ -21,6 +21,7 @@ cargo run -p reposcryer-cli -- status examples/sample-rust-project
 cargo run -p reposcryer-cli -- changed examples/sample-rust-project
 cargo run -p reposcryer-cli -- explain examples/sample-rust-project src/main.rs
 cargo run -p reposcryer-cli -- graph neighbors examples/sample-rust-project src/main.rs
+cargo run -p reposcryer-cli -- graph summary examples/sample-rust-project
 cargo run -p reposcryer-cli -- impact examples/sample-rust-project src/auth.rs
 cargo run -p reposcryer-cli -- graph rebuild examples/sample-rust-project
 ```

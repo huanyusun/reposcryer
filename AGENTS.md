@@ -17,6 +17,7 @@ Allowed in this phase:
 - idempotent rebuild of derived file dependency edges
 - explain command for stored file context
 - file-level graph neighbors query
+- Kuzu-backed graph summary query
 - file-level impact analysis based only on reverse `IMPORTS_FILE` traversal
 - documentation and tests for graph enhancement limitations
 
@@ -96,6 +97,9 @@ cargo run -p reposcryer-cli -- index examples/sample-rust-project
 cargo run -p reposcryer-cli -- status examples/sample-rust-project
 cargo run -p reposcryer-cli -- changed examples/sample-rust-project
 cargo run -p reposcryer-cli -- explain examples/sample-rust-project src/main.rs
+cargo run -p reposcryer-cli -- graph neighbors examples/sample-rust-project src/main.rs
+cargo run -p reposcryer-cli -- graph summary examples/sample-rust-project
+cargo run -p reposcryer-cli -- impact examples/sample-rust-project src/auth.rs
 cargo run -p reposcryer-cli -- graph rebuild examples/sample-rust-project
 ```
 
