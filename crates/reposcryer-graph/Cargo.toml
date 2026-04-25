@@ -1,0 +1,8 @@
+[package]
+name = "reposcryer-graph"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+reposcryer-core = { path = "../reposcryer-core" }
