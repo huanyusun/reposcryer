@@ -39,6 +39,7 @@ pub struct ChunkId(pub String);
 pub struct WarningId(pub String);
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub enum Language {
     Rust,
     Python,
@@ -95,6 +96,7 @@ pub struct ScanResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub enum SymbolKind {
     Struct,
     Enum,

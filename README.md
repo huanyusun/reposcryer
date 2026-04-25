@@ -2,7 +2,9 @@
 
 Read [AGENTS.md](AGENTS.md) before making non-trivial changes.
 
-RepoScryer is a local repo intelligence engine for AI coding agents. Phase 3 builds on the Kuzu store with reliable file-level dependency edges while preserving the Phase 1 export loop.
+RepoScryer is a local repo intelligence engine for AI coding agents. It provides reliable, low-token, queryable, incrementally updated codebase context through a CLI-first workflow backed by Kuzu.
+
+The project is intentionally staged: graph correctness and agent-friendly query APIs come before RAG, MCP, Web UI, or workspace-scale features.
 
 ## Current Capabilities
 
@@ -14,6 +16,21 @@ RepoScryer is a local repo intelligence engine for AI coding agents. Phase 3 bui
 - Kuzu-backed file dependency edges for explicit Rust `mod` and local `use` imports
 - `explain` CLI flow for stored file context, symbols, raw imports, resolved file dependencies, and warnings
 - Export of `graph.json`, `symbols.json`, `repo-map.md`, and `warnings.json`
+
+## Project Direction
+
+RepoScryer is moving toward a local intelligence layer that agents can query before editing code.
+
+- `v0.1`: Kuzu-backed graph index, incremental indexing, file dependency graph, CI/release.
+- `v0.2`: JSON query APIs and graph summary.
+- `v0.3`: real `.reposcryer/config.toml` loading.
+- `v0.4`: stronger Rust resolver fidelity.
+- `v0.5`: deterministic context packs for coding agents.
+- `v0.6`: broader language resolvers and test graph.
+- `v0.7`: diff-aware impact and test suggestions.
+- `v0.8`: Skill integration.
+
+See [docs/roadmap.md](docs/roadmap.md) for the product roadmap and [docs/development-roadmap.md](docs/development-roadmap.md) for the implementation plan.
 
 ## Output Layout
 
@@ -53,8 +70,11 @@ reposcryer index <path> --refresh
 reposcryer status <path>
 reposcryer changed <path>
 reposcryer explain <path> <file>
+reposcryer explain <path> <file> --json
 reposcryer graph neighbors <path> <file>
+reposcryer graph neighbors <path> <file> --json
 reposcryer impact <path> <file>
+reposcryer impact <path> <file> --json
 reposcryer graph rebuild <path>
 reposcryer map <path>
 reposcryer inspect <path>
@@ -68,4 +88,4 @@ All changes should be made on a feature branch and opened as a pull request into
 
 Phase 3 does not implement RAG, workspace multi-project management, Web UI, MCP, embeddings, SQLite, or Tantivy. `EdgeKind::Calls` remains a model variant only; RepoScryer does not emit call graph edges without reliable evidence.
 
-See [docs/kuzu-store.md](docs/kuzu-store.md), [docs/architecture.md](docs/architecture.md), and [docs/limitations.md](docs/limitations.md) for detail.
+See [docs/kuzu-store.md](docs/kuzu-store.md), [docs/architecture.md](docs/architecture.md), [docs/roadmap.md](docs/roadmap.md), [docs/development-roadmap.md](docs/development-roadmap.md), and [docs/limitations.md](docs/limitations.md) for detail.
