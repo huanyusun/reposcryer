@@ -3,9 +3,10 @@ use kuzu::{Connection, Database, SystemConfig, Value};
 use reposcryer_core::{
     CodeChunk, CodeFile, Confidence, Evidence, FileChange, FileChangeKind, FileDependency,
     FileExplanation, FileFingerprint, FileFingerprintRecord, FileId, FileImpact, FileNeighborhood,
-    FileStatus, ImpactedFile, Import, ImportId, IncrementalIndexPlan, IndexContext, IndexRun,
-    IndexRunStatus, IndexStats, IndexWarning, Language, ParsedFile, RepoStatus, RunId, ScanResult,
-    ScopeId, Symbol, SymbolId, SymbolKind, WarningId, file_id_from_relative_path, stable_hash,
+    FileStatus, GraphSummary, ImpactedFile, Import, ImportId, IncrementalIndexPlan, IndexContext,
+    IndexRun, IndexRunStatus, IndexStats, IndexWarning, Language, ParsedFile, RepoStatus, RunId,
+    ScanResult, ScopeId, Symbol, SymbolId, SymbolKind, WarningId, file_id_from_relative_path,
+    stable_hash,
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fs;
@@ -49,6 +50,7 @@ pub trait GraphStore {
         relative_path: &Path,
     ) -> Result<Option<FileNeighborhood>>;
     fn file_impact(&self, ctx: &IndexContext, relative_path: &Path) -> Result<Option<FileImpact>>;
+    fn scope_graph_summary(&self, ctx: &IndexContext) -> Result<GraphSummary>;
 }
 
 #[derive(Debug, Clone)]
@@ -267,6 +269,15 @@ impl KuzuGraphStore {
             scope_id = lit(&ctx.scope_id.0),
         ))?;
         rows.into_iter().map(file_dependency_from_row).collect()
+    }
+
+    fn count(&self, query: &str) -> Result<usize> {
+        let rows = self.fetch_rows(query)?;
+        let row = rows
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow!("count query returned no rows"))?;
+        Ok(u64_at(&row, 0)?.try_into()?)
     }
 }
 
@@ -906,6 +917,64 @@ impl GraphStore for KuzuGraphStore {
             relative_path,
             impacted_files,
         }))
+    }
+
+    fn scope_graph_summary(&self, ctx: &IndexContext) -> Result<GraphSummary> {
+        self.init_schema()?;
+        let scope_id = lit(&ctx.scope_id.0);
+        let active_files = self.count(&format!(
+            "MATCH (s:IndexScope {{scope_id: {scope_id}}})-[:CONTAINS_FILE]->(f:File) \
+             WHERE f.status = 'indexed' RETURN COUNT(f);"
+        ))?;
+        let deleted_files = self.count(&format!(
+            "MATCH (s:IndexScope {{scope_id: {scope_id}}})-[:CONTAINS_FILE]->(f:File) \
+             WHERE f.status = 'deleted' RETURN COUNT(f);"
+        ))?;
+        let symbols = self.count(&format!(
+            "MATCH (s:IndexScope {{scope_id: {scope_id}}})-[:CONTAINS_FILE]->(f:File)-[:DEFINES]->(sym:Symbol) \
+             WHERE f.status = 'indexed' RETURN COUNT(sym);"
+        ))?;
+        let imports = self.count(&format!(
+            "MATCH (s:IndexScope {{scope_id: {scope_id}}})-[:CONTAINS_FILE]->(f:File)-[:HAS_IMPORT]->(i:Import) \
+             WHERE f.status = 'indexed' RETURN COUNT(i);"
+        ))?;
+        let warnings = self.count(&format!(
+            "MATCH (s:IndexScope {{scope_id: {scope_id}}})-[:CONTAINS_FILE]->(f:File)-[:HAS_WARNING]->(w:Warning) \
+             WHERE f.status = 'indexed' RETURN COUNT(w);"
+        ))?;
+        let dependency_edges = self.count(&format!(
+            "MATCH (from:File)-[r:IMPORTS_FILE]->(to:File) \
+             WHERE from.scope_id = {scope_id} AND to.scope_id = {scope_id} AND from.status = 'indexed' AND to.status = 'indexed' \
+             RETURN COUNT(r);"
+        ))?;
+        let index_runs = self.count(&format!(
+            "MATCH (r:IndexRun) WHERE r.scope_id = {scope_id} RETURN COUNT(r);"
+        ))?;
+        let latest_rows = self.fetch_rows(&format!(
+            "MATCH (r:IndexRun) WHERE r.scope_id = {scope_id} \
+             RETURN r.run_id, r.status ORDER BY r.started_at DESC LIMIT 1;"
+        ))?;
+        let (latest_run_id, latest_run_status) = if let Some(row) = latest_rows.into_iter().next() {
+            (
+                Some(RunId(string_at(&row, 0)?)),
+                optional_string_at(&row, 1)?,
+            )
+        } else {
+            (None, None)
+        };
+
+        Ok(GraphSummary {
+            scope_id: ctx.scope_id.clone(),
+            active_files,
+            deleted_files,
+            symbols,
+            imports,
+            dependency_edges,
+            warnings,
+            index_runs,
+            latest_run_id,
+            latest_run_status,
+        })
     }
 }
 
@@ -1691,5 +1760,54 @@ mod tests {
                 .iter()
                 .any(|file| file.relative_path == Path::new("src/app.rs") && file.depth == 2)
         );
+    }
+
+    #[test]
+    fn scope_graph_summary_counts_current_kuzu_graph() {
+        let (dir, store) = test_store();
+        let ctx = sample_context(dir.path(), "parser-v1");
+        let run = store.begin_index_run(&ctx).expect("begin");
+        let main = sample_file("src/main.rs", "sha-main");
+        let auth = sample_file("src/auth.rs", "sha-auth");
+        let mut parsed_main = parsed_for(&main, "main");
+        parsed_main.imports = vec![Import {
+            import_id: ImportId(stable_hash(&[&main.file_id.0, "auth"])),
+            from_file_id: main.file_id.clone(),
+            raw_target: "auth".to_string(),
+            line: 1,
+        }];
+
+        store
+            .replace_file_subgraph(&main, &parsed_main, &run.run_id)
+            .expect("index main");
+        store
+            .replace_file_subgraph(&auth, &parsed_for(&auth, "AuthService"), &run.run_id)
+            .expect("index auth");
+        store
+            .rebuild_scope_import_edges(&ctx)
+            .expect("rebuild dependencies");
+        store
+            .complete_index_run(
+                &run.run_id,
+                &IndexStats {
+                    scanned_files: 2,
+                    added: 2,
+                    warnings: 2,
+                    ..IndexStats::default()
+                },
+            )
+            .expect("complete run");
+
+        let summary = store.scope_graph_summary(&ctx).expect("summary");
+
+        assert_eq!(summary.active_files, 2);
+        assert_eq!(summary.deleted_files, 0);
+        assert_eq!(summary.symbols, 2);
+        assert_eq!(summary.imports, 2);
+        assert_eq!(summary.dependency_edges, 1);
+        assert_eq!(summary.warnings, 2);
+        assert_eq!(summary.index_runs, 1);
+        assert_eq!(summary.latest_run_id, Some(run.run_id));
+        assert_eq!(summary.latest_run_status.as_deref(), Some("completed"));
     }
 }

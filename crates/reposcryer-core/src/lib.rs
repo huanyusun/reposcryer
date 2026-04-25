@@ -243,6 +243,20 @@ pub struct FileImpact {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GraphSummary {
+    pub scope_id: ScopeId,
+    pub active_files: usize,
+    pub deleted_files: usize,
+    pub symbols: usize,
+    pub imports: usize,
+    pub dependency_edges: usize,
+    pub warnings: usize,
+    pub index_runs: usize,
+    pub latest_run_id: Option<RunId>,
+    pub latest_run_status: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IndexContext {
     pub repo_id: RepoId,
     pub project_id: ProjectId,

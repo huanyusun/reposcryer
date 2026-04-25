@@ -59,12 +59,20 @@ struct IndexCommand {
 enum GraphCommand {
     Rebuild { path: PathBuf },
     Neighbors(FileQueryCommand),
+    Summary(SummaryCommand),
 }
 
 #[derive(Args, Debug)]
 struct FileQueryCommand {
     path: PathBuf,
     file: PathBuf,
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(Args, Debug)]
+struct SummaryCommand {
+    path: PathBuf,
     #[arg(long)]
     json: bool,
 }
@@ -84,6 +92,9 @@ fn main() -> Result<()> {
         Command::Graph {
             command: GraphCommand::Neighbors(command),
         } => run_graph_neighbors(&command.path, &command.file, command.json),
+        Command::Graph {
+            command: GraphCommand::Summary(command),
+        } => run_graph_summary(&command.path, command.json),
         Command::Map { path } => {
             print!("{}", load_repo_map(&path)?);
             Ok(())
@@ -214,6 +225,35 @@ fn run_explain(path: &Path, file: &Path, json_output: bool) -> Result<()> {
     }
     for warning in explanation.warnings {
         println!("warning: {} {}", warning.stage, warning.message);
+    }
+    Ok(())
+}
+
+fn run_graph_summary(path: &Path, json_output: bool) -> Result<()> {
+    let config = RepoScryerConfig::from_path(path)?;
+    let scan = scan_repo(path, &config)?;
+    let ctx = index_context(&scan.repo_root);
+    let store = store_for_root(&scan.repo_root, &config);
+    let summary = store.scope_graph_summary(&ctx)?;
+
+    if json_output {
+        println!("{}", serde_json::to_string_pretty(&summary)?);
+        return Ok(());
+    }
+
+    println!("scope_id: {}", summary.scope_id.0);
+    println!("active_files: {}", summary.active_files);
+    println!("deleted_files: {}", summary.deleted_files);
+    println!("symbols: {}", summary.symbols);
+    println!("imports: {}", summary.imports);
+    println!("dependency_edges: {}", summary.dependency_edges);
+    println!("warnings: {}", summary.warnings);
+    println!("index_runs: {}", summary.index_runs);
+    if let Some(run_id) = summary.latest_run_id {
+        println!("latest_run_id: {}", run_id.0);
+    }
+    if let Some(status) = summary.latest_run_status {
+        println!("latest_run_status: {status}");
     }
     Ok(())
 }

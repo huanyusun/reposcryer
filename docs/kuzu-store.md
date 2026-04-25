@@ -82,7 +82,7 @@ Phase 3 does not create `CALLS` relationships.
 
 After changed files are applied, `rebuild_scope_import_edges` deletes existing derived `IMPORTS_FILE` edges for the current scope and recreates them from stored imports. The current resolver is intentionally narrow and only resolves explicit local Rust module paths to indexed files.
 
-`file_neighbors` and `file_impact` query the derived `IMPORTS_FILE` graph. `file_impact` intentionally walks reverse file dependencies only; it does not imply symbol-level or call-level impact.
+`file_neighbors`, `file_impact`, and `scope_graph_summary` query the Kuzu graph directly. `file_impact` intentionally walks reverse file dependencies only; it does not imply symbol-level or call-level impact. `scope_graph_summary` reports current scope counts from Kuzu rather than reading Phase 1 export files.
 
 ## Soft Delete
 

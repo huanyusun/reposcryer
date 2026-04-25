@@ -57,6 +57,7 @@ cargo run -p reposcryer-cli -- status examples/sample-rust-project
 cargo run -p reposcryer-cli -- changed examples/sample-rust-project
 cargo run -p reposcryer-cli -- explain examples/sample-rust-project src/main.rs
 cargo run -p reposcryer-cli -- graph neighbors examples/sample-rust-project src/main.rs
+cargo run -p reposcryer-cli -- graph summary examples/sample-rust-project
 cargo run -p reposcryer-cli -- impact examples/sample-rust-project src/auth.rs
 cargo run -p reposcryer-cli -- graph rebuild examples/sample-rust-project
 ```
@@ -73,6 +74,8 @@ reposcryer explain <path> <file>
 reposcryer explain <path> <file> --json
 reposcryer graph neighbors <path> <file>
 reposcryer graph neighbors <path> <file> --json
+reposcryer graph summary <path>
+reposcryer graph summary <path> --json
 reposcryer impact <path> <file>
 reposcryer impact <path> <file> --json
 reposcryer graph rebuild <path>
