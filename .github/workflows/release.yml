@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        run: cargo build --release -p reposcryer-cli
+
+      - name: Package binary
+        run: |
+          mkdir -p dist
+          cp target/release/reposcryer-cli dist/reposcryer
+          tar -C dist -czf reposcryer-linux-x86_64.tar.gz reposcryer
+
+      - name: Create GitHub release for this main commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "reposcryer-cli") | .version')"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          TAG="v${VERSION}-${SHORT_SHA}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists"
+            exit 0
+          fi
+          git tag "$TAG" "$GITHUB_SHA"
+          git push origin "$TAG"
+          gh release create "$TAG" \
+            reposcryer-linux-x86_64.tar.gz \
+            --target "$GITHUB_SHA" \
+            --title "RepoScryer ${VERSION} (${SHORT_SHA})" \
+            --notes "Automated release from main commit ${GITHUB_SHA}."

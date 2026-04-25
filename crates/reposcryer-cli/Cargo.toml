@@ -1,0 +1,21 @@
+[package]
+name = "reposcryer-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+reposcryer-config = { path = "../reposcryer-config" }
+reposcryer-core = { path = "../reposcryer-core" }
+reposcryer-export = { path = "../reposcryer-export" }
+reposcryer-graph = { path = "../reposcryer-graph" }
+reposcryer-ingest = { path = "../reposcryer-ingest" }
+reposcryer-parser = { path = "../reposcryer-parser" }
+reposcryer-store = { path = "../reposcryer-store" }
+serde_json.workspace = true
+
+[dev-dependencies]
+assert_cmd.workspace = true
+tempfile.workspace = true
