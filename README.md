@@ -70,8 +70,11 @@ reposcryer index <path> --refresh
 reposcryer status <path>
 reposcryer changed <path>
 reposcryer explain <path> <file>
+reposcryer explain <path> <file> --json
 reposcryer graph neighbors <path> <file>
+reposcryer graph neighbors <path> <file> --json
 reposcryer impact <path> <file>
+reposcryer impact <path> <file> --json
 reposcryer graph rebuild <path>
 reposcryer map <path>
 reposcryer inspect <path>

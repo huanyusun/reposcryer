@@ -31,6 +31,8 @@ cargo run -p reposcryer-cli -- graph rebuild examples/sample-rust-project
 
 Branch: `codex/phase3-json-query-api`
 
+Status: in progress.
+
 Scope:
 
 - Add `--json` for `explain`.

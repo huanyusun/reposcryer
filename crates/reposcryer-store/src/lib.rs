@@ -92,7 +92,10 @@ impl KuzuGraphStore {
             fs::create_dir_all(parent)
                 .with_context(|| format!("failed to create {}", parent.display()))?;
         }
-        let db = Database::new(&self.db_path, SystemConfig::default())
+        let config = SystemConfig::default()
+            .max_db_size(16 * 1024 * 1024 * 1024)
+            .max_num_threads(1);
+        let db = Database::new(&self.db_path, config)
             .map_err(|error| anyhow!("failed to open kuzu database: {error}"))?;
         let conn = Connection::new(&db)
             .map_err(|error| anyhow!("failed to connect to kuzu database: {error}"))?;

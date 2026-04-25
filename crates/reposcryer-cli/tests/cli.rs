@@ -1,4 +1,5 @@
 use assert_cmd::Command;
+use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::tempdir;
@@ -192,4 +193,101 @@ fn impact_shows_reverse_file_dependencies() {
 
     assert!(stdout.contains("file: src/auth.rs"));
     assert!(stdout.contains("impacted: depth=1 src/main.rs"));
+}
+
+#[test]
+fn explain_json_outputs_structured_file_context() {
+    let dir = temp_sample_repo();
+
+    Command::cargo_bin("reposcryer-cli")
+        .expect("binary")
+        .arg("index")
+        .arg(dir.path())
+        .assert()
+        .success();
+
+    let mut command = Command::cargo_bin("reposcryer-cli").expect("binary");
+    let assert = command
+        .arg("explain")
+        .arg(dir.path())
+        .arg("src/main.rs")
+        .arg("--json")
+        .assert()
+        .success();
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).expect("utf8");
+    let value: Value = serde_json::from_str(&stdout).expect("valid json");
+
+    assert_eq!(value["relative_path"], "src/main.rs");
+    assert_eq!(value["language"], "rust");
+    assert!(
+        value["dependencies"]
+            .as_array()
+            .expect("dependencies array")
+            .iter()
+            .any(|dependency| dependency["to_relative_path"] == "src/auth.rs")
+    );
+}
+
+#[test]
+fn graph_neighbors_json_outputs_incoming_and_outgoing() {
+    let dir = temp_sample_repo();
+
+    Command::cargo_bin("reposcryer-cli")
+        .expect("binary")
+        .arg("index")
+        .arg(dir.path())
+        .assert()
+        .success();
+
+    let mut command = Command::cargo_bin("reposcryer-cli").expect("binary");
+    let assert = command
+        .args(["graph", "neighbors"])
+        .arg(dir.path())
+        .arg("src/main.rs")
+        .arg("--json")
+        .assert()
+        .success();
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).expect("utf8");
+    let value: Value = serde_json::from_str(&stdout).expect("valid json");
+
+    assert_eq!(value["relative_path"], "src/main.rs");
+    assert!(
+        value["outgoing"]
+            .as_array()
+            .expect("outgoing array")
+            .iter()
+            .any(|dependency| dependency["to_relative_path"] == "src/db.rs")
+    );
+}
+
+#[test]
+fn impact_json_outputs_structured_impacted_files() {
+    let dir = temp_sample_repo();
+
+    Command::cargo_bin("reposcryer-cli")
+        .expect("binary")
+        .arg("index")
+        .arg(dir.path())
+        .assert()
+        .success();
+
+    let mut command = Command::cargo_bin("reposcryer-cli").expect("binary");
+    let assert = command
+        .arg("impact")
+        .arg(dir.path())
+        .arg("src/auth.rs")
+        .arg("--json")
+        .assert()
+        .success();
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).expect("utf8");
+    let value: Value = serde_json::from_str(&stdout).expect("valid json");
+
+    assert_eq!(value["relative_path"], "src/auth.rs");
+    assert!(
+        value["impacted_files"]
+            .as_array()
+            .expect("impacted files array")
+            .iter()
+            .any(|file| file["relative_path"] == "src/main.rs" && file["depth"] == 1)
+    );
 }

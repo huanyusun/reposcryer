@@ -16,6 +16,7 @@ Phase 3 trades feature breadth for a durable Kuzu-backed indexing core plus reli
 - `RepoScryerConfig::from_path` is a placeholder interface that currently returns defaults.
 - Kuzu transaction support is not used yet; Phase 3 uses idempotent per-file replacement plus `IndexRun` status for recovery.
 - Kuzu database access should be treated as single-process in the current CLI. Running multiple RepoScryer commands against the same `.reposcryer/kuzu/db` concurrently can hit Kuzu file locks.
+- Kuzu store connections currently cap `max_db_size` at 16 GiB and use one query thread to keep local and CI runs stable. Large-repo tuning is deferred.
 - Kuzu schema migration is currently rebuild-based. If the stored schema version differs from the current Phase 3 schema, the local Kuzu database is rebuilt from the current filesystem scan.
 - Kuzu Rust crate `0.11.3` requires `cxx-build` to match its pinned `cxx` bridge version. The workspace pins `cxx-build = 1.0.138` to avoid bridge symbol mismatches.
 

@@ -102,6 +102,7 @@ The next index run rescans the filesystem and rebuilds the incremental plan from
 ## Current Kuzu Limits
 
 - The implementation uses short-lived connections for simplicity.
+- Store connections currently cap Kuzu `max_db_size` at 16 GiB and use one query thread. This avoids excessive virtual memory mapping in local tests and early CLI usage. Large-repo tuning is deferred.
 - Schema migration is conservative. If `.reposcryer/kuzu` has an older `SchemaMeta.schema_version`, Phase 3 rebuilds the local Kuzu database from the current filesystem scan.
 - Query construction currently uses escaped literals because the store API surface is small.
 - Kuzu Rust crate `0.11.3` pins `cxx = 1.0.138` but allows newer `cxx-build`; this workspace pins `cxx-build = 1.0.138` so generated bridge symbols match.

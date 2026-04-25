@@ -32,14 +32,8 @@ enum Command {
     Changed {
         path: PathBuf,
     },
-    Explain {
-        path: PathBuf,
-        file: PathBuf,
-    },
-    Impact {
-        path: PathBuf,
-        file: PathBuf,
-    },
+    Explain(FileQueryCommand),
+    Impact(FileQueryCommand),
     Graph {
         #[command(subcommand)]
         command: GraphCommand,
@@ -64,7 +58,15 @@ struct IndexCommand {
 #[derive(Subcommand, Debug)]
 enum GraphCommand {
     Rebuild { path: PathBuf },
-    Neighbors { path: PathBuf, file: PathBuf },
+    Neighbors(FileQueryCommand),
+}
+
+#[derive(Args, Debug)]
+struct FileQueryCommand {
+    path: PathBuf,
+    file: PathBuf,
+    #[arg(long)]
+    json: bool,
 }
 
 fn main() -> Result<()> {
@@ -74,14 +76,14 @@ fn main() -> Result<()> {
         Command::Index(command) => run_index(&command.path, command.full, command.refresh),
         Command::Status { path } => run_status(&path),
         Command::Changed { path } => run_changed(&path),
-        Command::Explain { path, file } => run_explain(&path, &file),
-        Command::Impact { path, file } => run_impact(&path, &file),
+        Command::Explain(command) => run_explain(&command.path, &command.file, command.json),
+        Command::Impact(command) => run_impact(&command.path, &command.file, command.json),
         Command::Graph {
             command: GraphCommand::Rebuild { path },
         } => run_index(&path, true, false),
         Command::Graph {
-            command: GraphCommand::Neighbors { path, file },
-        } => run_graph_neighbors(&path, &file),
+            command: GraphCommand::Neighbors(command),
+        } => run_graph_neighbors(&command.path, &command.file, command.json),
         Command::Map { path } => {
             print!("{}", load_repo_map(&path)?);
             Ok(())
@@ -180,7 +182,7 @@ fn run_changed(path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn run_explain(path: &Path, file: &Path) -> Result<()> {
+fn run_explain(path: &Path, file: &Path, json_output: bool) -> Result<()> {
     let config = RepoScryerConfig::from_path(path)?;
     let scan = scan_repo(path, &config)?;
     let ctx = index_context(&scan.repo_root);
@@ -188,6 +190,11 @@ fn run_explain(path: &Path, file: &Path) -> Result<()> {
     let explanation = store
         .explain_file(&ctx, file)?
         .ok_or_else(|| anyhow::anyhow!("file is not indexed: {}", file.display()))?;
+
+    if json_output {
+        println!("{}", serde_json::to_string_pretty(&explanation)?);
+        return Ok(());
+    }
 
     println!("file: {}", explanation.relative_path.display());
     println!("language: {}", explanation.language.as_str());
@@ -211,7 +218,7 @@ fn run_explain(path: &Path, file: &Path) -> Result<()> {
     Ok(())
 }
 
-fn run_graph_neighbors(path: &Path, file: &Path) -> Result<()> {
+fn run_graph_neighbors(path: &Path, file: &Path, json_output: bool) -> Result<()> {
     let config = RepoScryerConfig::from_path(path)?;
     let scan = scan_repo(path, &config)?;
     let ctx = index_context(&scan.repo_root);
@@ -219,6 +226,11 @@ fn run_graph_neighbors(path: &Path, file: &Path) -> Result<()> {
     let neighbors = store
         .file_neighbors(&ctx, file)?
         .ok_or_else(|| anyhow::anyhow!("file is not indexed: {}", file.display()))?;
+
+    if json_output {
+        println!("{}", serde_json::to_string_pretty(&neighbors)?);
+        return Ok(());
+    }
 
     println!("file: {}", neighbors.relative_path.display());
     for dependency in neighbors.outgoing {
@@ -238,7 +250,7 @@ fn run_graph_neighbors(path: &Path, file: &Path) -> Result<()> {
     Ok(())
 }
 
-fn run_impact(path: &Path, file: &Path) -> Result<()> {
+fn run_impact(path: &Path, file: &Path, json_output: bool) -> Result<()> {
     let config = RepoScryerConfig::from_path(path)?;
     let scan = scan_repo(path, &config)?;
     let ctx = index_context(&scan.repo_root);
@@ -246,6 +258,11 @@ fn run_impact(path: &Path, file: &Path) -> Result<()> {
     let impact = store
         .file_impact(&ctx, file)?
         .ok_or_else(|| anyhow::anyhow!("file is not indexed: {}", file.display()))?;
+
+    if json_output {
+        println!("{}", serde_json::to_string_pretty(&impact)?);
+        return Ok(());
+    }
 
     println!("file: {}", impact.relative_path.display());
     for impacted in impact.impacted_files {
