@@ -80,7 +80,7 @@ Phase 3 does not create `CALLS` relationships.
 
 `Added`, `Modified`, and `ReindexNeeded` files are read, parsed, and passed to `replace_file_subgraph`. That operation removes stale local children for the file, upserts the `File` node, recreates `Symbol`, `Import`, `Chunk`, and `Warning` nodes, recreates local edges, and records an `IndexRun TOUCHED_FILE` edge.
 
-After changed files are applied, `rebuild_scope_import_edges` deletes existing derived `IMPORTS_FILE` edges for the current scope and recreates them from stored imports. The current resolver is intentionally narrow and only resolves explicit local Rust module paths to indexed files.
+After changed files are applied, `rebuild_scope_import_edges` deletes existing derived `IMPORTS_FILE` edges for the current scope and recreates them from stored imports. The current resolver is intentionally narrow and only resolves explicit local Rust module paths to indexed files. It supports `crate::`, `self::`, `super::`, bare local module paths, `mod`, and `pub mod` declarations, and it prefers the deepest matching module file before falling back to parent module files. Standard library roots such as `std`, `core`, and `alloc` are ignored.
 
 `file_neighbors`, `file_impact`, and `scope_graph_summary` query the Kuzu graph directly. `file_impact` intentionally walks reverse file dependencies only; it does not imply symbol-level or call-level impact. `scope_graph_summary` reports current scope counts from Kuzu rather than reading Phase 1 export files.
 

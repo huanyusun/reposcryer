@@ -87,9 +87,11 @@ Acceptance:
 - User config is not overwritten unless explicitly requested.
 - Scan behavior honors configured ignored directories and file size limits.
 
-### PR 5: Rust Resolver Fidelity
+### PR 6: Rust Resolver Fidelity
 
 Branch: `codex/rust-resolver-fidelity`
+
+Status: in progress.
 
 Scope:
 
@@ -104,7 +106,7 @@ Acceptance:
 - External crates and standard library imports do not become local dependency edges.
 - No `CALLS` edges are generated.
 
-### PR 6: Context Pack
+### PR 7: Context Pack
 
 Branch: `codex/context-pack`
 
@@ -122,7 +124,7 @@ Acceptance:
 - Context does not call an LLM.
 - No embeddings or RAG are introduced.
 
-### PR 7: Test Graph and Test Suggestions
+### PR 8: Test Graph and Test Suggestions
 
 Branch: `codex/test-graph`
 
@@ -138,7 +140,7 @@ Acceptance:
 - Test suggestions are evidence-based.
 - Unsupported or ambiguous cases are omitted rather than guessed.
 
-### PR 8: Diff-Aware Impact
+### PR 9: Diff-Aware Impact
 
 Branch: `codex/diff-aware-impact`
 

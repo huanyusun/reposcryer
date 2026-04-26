@@ -70,7 +70,8 @@ impl LanguageParser for RustParser {
         let fn_re = Regex::new(r"^\s*(?:pub\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)")?;
         let impl_re = Regex::new(r"^\s*impl(?:\s+[^ ]+)?\s+([A-Za-z_][A-Za-z0-9_]*)")?;
         let use_re = Regex::new(r"^\s*use\s+([^;]+);")?;
-        let mod_re = Regex::new(r"^\s*mod\s+([A-Za-z_][A-Za-z0-9_]*)\s*;")?;
+        let mod_re =
+            Regex::new(r"^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+([A-Za-z_][A-Za-z0-9_]*)\s*;")?;
         let mut in_impl = false;
         let mut impl_depth: i32 = 0;
 
@@ -430,6 +431,27 @@ mod tests {
                 .symbols
                 .iter()
                 .any(|symbol| symbol.name == "auth" && symbol.kind == SymbolKind::Module)
+        );
+    }
+
+    #[test]
+    fn rust_parser_extracts_public_mod_declaration_as_import() {
+        let file = sample_file("src/lib.rs", Language::Rust);
+        let parsed = ParserRegistry
+            .parse_file(&file, "pub mod services;\n")
+            .expect("parse succeeds");
+
+        assert!(
+            parsed
+                .imports
+                .iter()
+                .any(|import| import.raw_target == "services")
+        );
+        assert!(
+            parsed
+                .symbols
+                .iter()
+                .any(|symbol| symbol.name == "services" && symbol.kind == SymbolKind::Module)
         );
     }
 

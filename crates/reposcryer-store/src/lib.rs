@@ -994,44 +994,118 @@ fn resolve_local_file_import<'a>(
         return None;
     }
 
-    let mut target = raw_target.trim();
-    for prefix in ["crate::", "self::", "super::"] {
-        if let Some(stripped) = target.strip_prefix(prefix) {
-            target = stripped;
-            break;
-        }
-    }
-    let first_segment = target
-        .split("::")
-        .next()
-        .unwrap_or_default()
-        .trim_matches(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_');
-    if first_segment.is_empty() || matches!(first_segment, "std" | "core" | "alloc") {
+    let (base_dirs, segments) =
+        rust_import_base_dirs_and_segments(&from.relative_path, raw_target)?;
+    if segments.is_empty() || matches!(segments[0].as_str(), "std" | "core" | "alloc") {
         return None;
     }
 
-    rust_module_candidates(&from.relative_path, first_segment)
+    base_dirs
+        .iter()
+        .flat_map(|base_dir| rust_module_candidates(base_dir, &segments))
         .into_iter()
         .find_map(|candidate| files_by_path.get(&path_key(&candidate)).copied())
 }
 
-fn rust_module_candidates(from_path: &Path, module: &str) -> Vec<PathBuf> {
+fn rust_import_base_dirs_and_segments(
+    from_path: &Path,
+    raw_target: &str,
+) -> Option<(Vec<PathBuf>, Vec<String>)> {
+    let mut target = raw_target.trim();
+    if target.is_empty() || target.contains('{') || target.contains(',') {
+        return None;
+    }
+
+    let base_dirs = if let Some(stripped) = target.strip_prefix("crate::") {
+        target = stripped;
+        vec![PathBuf::from("src")]
+    } else if let Some(stripped) = target.strip_prefix("self::") {
+        target = stripped;
+        vec![rust_current_module_dir(from_path)]
+    } else {
+        let mut super_count = 0;
+        while let Some(stripped) = target.strip_prefix("super::") {
+            target = stripped;
+            super_count += 1;
+        }
+        if super_count > 0 {
+            vec![rust_ancestor_module_dir(from_path, super_count)?]
+        } else {
+            rust_bare_import_base_dirs(from_path)
+        }
+    };
+
+    let segments = target
+        .split("::")
+        .map(clean_rust_path_segment)
+        .take_while(|segment| !segment.is_empty())
+        .collect::<Vec<_>>();
+
+    Some((base_dirs, segments))
+}
+
+fn rust_current_module_dir(from_path: &Path) -> PathBuf {
     let parent = from_path.parent().unwrap_or_else(|| Path::new(""));
     let stem = from_path
         .file_stem()
         .and_then(|value| value.to_str())
         .unwrap_or_default();
+    if matches!(stem, "main" | "lib" | "mod" | "") {
+        parent.to_path_buf()
+    } else {
+        parent.join(stem)
+    }
+}
+
+fn rust_ancestor_module_dir(from_path: &Path, levels: usize) -> Option<PathBuf> {
+    let mut dir = rust_current_module_dir(from_path);
+    for _ in 0..levels {
+        if path_key(&dir) == "src" {
+            return None;
+        }
+        dir = dir.parent()?.to_path_buf();
+    }
+    Some(dir)
+}
+
+fn rust_bare_import_base_dirs(from_path: &Path) -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    for dir in [
+        rust_current_module_dir(from_path),
+        from_path
+            .parent()
+            .unwrap_or_else(|| Path::new(""))
+            .to_path_buf(),
+        PathBuf::from("src"),
+    ] {
+        if !dirs.iter().any(|existing| existing == &dir) {
+            dirs.push(dir);
+        }
+    }
+    dirs
+}
+
+fn rust_module_candidates(base_dir: &Path, segments: &[String]) -> Vec<PathBuf> {
     let mut candidates = Vec::new();
 
-    if !matches!(stem, "main" | "lib" | "mod" | "") {
-        candidates.push(parent.join(stem).join(format!("{module}.rs")));
-        candidates.push(parent.join(stem).join(module).join("mod.rs"));
+    for len in (1..=segments.len()).rev() {
+        let mut module_path = base_dir.to_path_buf();
+        for segment in &segments[..len] {
+            module_path.push(segment);
+        }
+        candidates.push(module_path.with_extension("rs"));
+        candidates.push(module_path.join("mod.rs"));
     }
-    candidates.push(parent.join(format!("{module}.rs")));
-    candidates.push(parent.join(module).join("mod.rs"));
-    candidates.push(PathBuf::from("src").join(format!("{module}.rs")));
-    candidates.push(PathBuf::from("src").join(module).join("mod.rs"));
+
     candidates
+}
+
+fn clean_rust_path_segment(segment: &str) -> String {
+    let segment = segment.trim().trim_start_matches("r#");
+    segment
+        .chars()
+        .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
+        .collect()
 }
 
 fn path_key(path: &Path) -> String {
@@ -1260,6 +1334,21 @@ mod tests {
         let rows = store.fetch_rows(query).expect("query succeeds");
         let row = rows.into_iter().next().expect("count row");
         u64_at(&row, 0).expect("count value")
+    }
+
+    fn stored_file(path: &str) -> StoredFile {
+        StoredFile {
+            file_id: FileId(stable_hash(&[path])),
+            relative_path: PathBuf::from(path),
+            language: Language::Rust,
+        }
+    }
+
+    fn stored_files_by_path(files: &[StoredFile]) -> BTreeMap<String, &StoredFile> {
+        files
+            .iter()
+            .map(|file| (path_key(&file.relative_path), file))
+            .collect()
     }
 
     #[test]
@@ -1599,6 +1688,161 @@ mod tests {
                 "MATCH (:File)-[:IMPORTS_FILE]->(:File) RETURN COUNT(*)"
             ),
             1
+        );
+    }
+
+    #[test]
+    fn rust_resolver_handles_crate_self_super_and_nested_modules() {
+        let main = stored_file("src/main.rs");
+        let services_mod = stored_file("src/services/mod.rs");
+        let auth = stored_file("src/services/auth.rs");
+        let token = stored_file("src/services/auth/token.rs");
+        let db = stored_file("src/services/db.rs");
+        let files = vec![main, services_mod, auth, token, db];
+        let by_path = stored_files_by_path(&files);
+
+        assert_eq!(
+            resolve_local_file_import(&files[0], "crate::services::auth::AuthService", &by_path)
+                .map(|file| file.relative_path.as_path()),
+            Some(Path::new("src/services/auth.rs"))
+        );
+        assert_eq!(
+            resolve_local_file_import(&files[1], "self::auth::AuthService", &by_path)
+                .map(|file| file.relative_path.as_path()),
+            Some(Path::new("src/services/auth.rs"))
+        );
+        assert_eq!(
+            resolve_local_file_import(&files[2], "self::token::Token", &by_path)
+                .map(|file| file.relative_path.as_path()),
+            Some(Path::new("src/services/auth/token.rs"))
+        );
+        assert_eq!(
+            resolve_local_file_import(&files[2], "super::db::Database", &by_path)
+                .map(|file| file.relative_path.as_path()),
+            Some(Path::new("src/services/db.rs"))
+        );
+    }
+
+    #[test]
+    fn rust_resolver_ignores_std_and_unmatched_external_imports() {
+        let main = stored_file("src/main.rs");
+        let auth = stored_file("src/auth.rs");
+        let files = vec![main, auth];
+        let by_path = stored_files_by_path(&files);
+
+        assert!(resolve_local_file_import(&files[0], "std::fmt::Debug", &by_path).is_none());
+        assert!(resolve_local_file_import(&files[0], "core::fmt::Debug", &by_path).is_none());
+        assert!(resolve_local_file_import(&files[0], "serde::Serialize", &by_path).is_none());
+    }
+
+    #[test]
+    fn rebuild_scope_import_edges_resolves_nested_rust_module_fixture() {
+        let (dir, store) = test_store();
+        let ctx = sample_context(dir.path(), "parser-v1");
+        let run = store.begin_index_run(&ctx).expect("begin");
+        let main = sample_file("src/main.rs", "sha-main");
+        let services_mod = sample_file("src/services/mod.rs", "sha-services");
+        let auth = sample_file("src/services/auth.rs", "sha-auth");
+        let token = sample_file("src/services/auth/token.rs", "sha-token");
+        let db = sample_file("src/services/db.rs", "sha-db");
+
+        let mut parsed_main = parsed_for(&main, "main");
+        parsed_main.imports = vec![Import {
+            import_id: ImportId(stable_hash(&[
+                &main.file_id.0,
+                "crate::services::auth::AuthService",
+            ])),
+            from_file_id: main.file_id.clone(),
+            raw_target: "crate::services::auth::AuthService".to_string(),
+            line: 1,
+        }];
+        let mut parsed_services = parsed_for(&services_mod, "services");
+        parsed_services.imports = vec![Import {
+            import_id: ImportId(stable_hash(&[
+                &services_mod.file_id.0,
+                "self::auth::AuthService",
+            ])),
+            from_file_id: services_mod.file_id.clone(),
+            raw_target: "self::auth::AuthService".to_string(),
+            line: 1,
+        }];
+        let mut parsed_auth = parsed_for(&auth, "AuthService");
+        parsed_auth.imports = vec![
+            Import {
+                import_id: ImportId(stable_hash(&[&auth.file_id.0, "self::token::Token"])),
+                from_file_id: auth.file_id.clone(),
+                raw_target: "self::token::Token".to_string(),
+                line: 1,
+            },
+            Import {
+                import_id: ImportId(stable_hash(&[&auth.file_id.0, "super::db::Database"])),
+                from_file_id: auth.file_id.clone(),
+                raw_target: "super::db::Database".to_string(),
+                line: 2,
+            },
+            Import {
+                import_id: ImportId(stable_hash(&[&auth.file_id.0, "serde::Serialize"])),
+                from_file_id: auth.file_id.clone(),
+                raw_target: "serde::Serialize".to_string(),
+                line: 3,
+            },
+        ];
+
+        for (file, parsed) in [
+            (&main, &parsed_main),
+            (&services_mod, &parsed_services),
+            (&auth, &parsed_auth),
+            (&token, &parsed_for(&token, "Token")),
+            (&db, &parsed_for(&db, "Database")),
+        ] {
+            store
+                .replace_file_subgraph(file, parsed, &run.run_id)
+                .expect("index file");
+        }
+
+        let rebuilt = store
+            .rebuild_scope_import_edges(&ctx)
+            .expect("rebuild import edges");
+
+        assert_eq!(rebuilt, 4);
+        let rows = store
+            .fetch_rows("MATCH (from:File)-[r:IMPORTS_FILE]->(to:File) RETURN from.relative_path, to.relative_path, r.raw_target ORDER BY from.relative_path, to.relative_path;")
+            .expect("dependency rows");
+        let edges: Vec<_> = rows
+            .into_iter()
+            .map(|row| {
+                (
+                    string_at(&row, 0).expect("from"),
+                    string_at(&row, 1).expect("to"),
+                    string_at(&row, 2).expect("raw"),
+                )
+            })
+            .collect();
+
+        assert!(edges.contains(&(
+            "src/main.rs".to_string(),
+            "src/services/auth.rs".to_string(),
+            "crate::services::auth::AuthService".to_string()
+        )));
+        assert!(edges.contains(&(
+            "src/services/mod.rs".to_string(),
+            "src/services/auth.rs".to_string(),
+            "self::auth::AuthService".to_string()
+        )));
+        assert!(edges.contains(&(
+            "src/services/auth.rs".to_string(),
+            "src/services/auth/token.rs".to_string(),
+            "self::token::Token".to_string()
+        )));
+        assert!(edges.contains(&(
+            "src/services/auth.rs".to_string(),
+            "src/services/db.rs".to_string(),
+            "super::db::Database".to_string()
+        )));
+        assert!(
+            !edges
+                .iter()
+                .any(|(_, _, raw_target)| raw_target == "serde::Serialize")
         );
     }
 

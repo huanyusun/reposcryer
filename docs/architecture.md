@@ -39,7 +39,9 @@ Phase 3 keeps project/worktree/scope identity simple and local to the current re
 
 ## File Dependencies
 
-`reposcryer-store` derives `IMPORTS_FILE` edges from stored `Import` nodes and active `File` nodes. The current resolver is intentionally narrow: it resolves Rust module paths such as `mod auth;`, `use auth::AuthService;`, and `use crate::db::Database;` to local `src/auth.rs`, `src/auth/mod.rs`, `src/db.rs`, or `src/db/mod.rs` candidates when those files are indexed.
+`reposcryer-store` derives `IMPORTS_FILE` edges from stored `Import` nodes and active `File` nodes. The current resolver is intentionally narrow: it resolves Rust module paths such as `mod auth;`, `pub mod services;`, `use auth::AuthService;`, `use crate::services::auth::AuthService;`, `use self::token::Token;`, and `use super::db::Database;` to indexed local module files when the path evidence is explicit.
+
+Rust resolution prefers the deepest matching module prefix. For example, `crate::services::auth::AuthService` resolves to `src/services/auth.rs` before falling back to `src/services/mod.rs`. `self::` starts from the current module directory, `super::` walks to ancestor module directories, and `crate::` starts from `src`. Standard library roots such as `std`, `core`, and `alloc` are ignored.
 
 Graph query APIs are also owned by `reposcryer-store`:
 

@@ -6,7 +6,8 @@ Phase 3 trades feature breadth for a durable Kuzu-backed indexing core plus reli
 - JavaScript and TypeScript support focus on common `import`, `require`, `function`, `class`, and arrow-function forms.
 - Java and Go parsing is intentionally shallow and does not attempt full signature or package resolution.
 - Import nodes keep raw targets. File-level import resolution currently supports explicit local Rust module paths only.
-- Rust dependency resolution is heuristic and path-based. It does not run `rustc`, expand macros, evaluate `cfg`, resolve Cargo workspace packages, or distinguish all `self` / `super` nesting cases.
+- Rust dependency resolution is heuristic and path-based. It does not run `rustc`, expand macros, evaluate `cfg`, resolve Cargo workspace packages, or parse complex grouped imports such as `use crate::{a, b};`.
+- Rust resolver support is intentionally file-level. It resolves indexed module file paths, not item-level definitions inside those files.
 - `reposcryer impact` is file-level reverse dependency analysis. It reports files that may be affected through resolved imports, not guaranteed runtime behavior.
 - `EdgeKind::Calls` exists in the model but is intentionally not emitted in Phase 3.
 - File-level incremental indexing does not yet rebuild inbound weak references from other files when one file changes.
