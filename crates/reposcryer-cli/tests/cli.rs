@@ -122,6 +122,88 @@ fn graph_rebuild_recreates_kuzu_database() {
 }
 
 #[test]
+fn config_init_creates_default_config_without_overwrite() {
+    let dir = tempdir().expect("tempdir");
+
+    Command::cargo_bin("reposcryer-cli")
+        .expect("binary")
+        .args(["config", "init"])
+        .arg(dir.path())
+        .assert()
+        .success();
+
+    let config_path = dir.path().join(".reposcryer/config.toml");
+    assert!(config_path.exists());
+    let original = fs::read_to_string(&config_path).expect("read config");
+    fs::write(&config_path, "max_file_size_bytes = 64\n").expect("custom config");
+
+    Command::cargo_bin("reposcryer-cli")
+        .expect("binary")
+        .args(["config", "init"])
+        .arg(dir.path())
+        .assert()
+        .success();
+
+    assert_ne!(original, "max_file_size_bytes = 64\n");
+    assert_eq!(
+        fs::read_to_string(&config_path).expect("read config"),
+        "max_file_size_bytes = 64\n"
+    );
+
+    Command::cargo_bin("reposcryer-cli")
+        .expect("binary")
+        .args(["config", "init", "--force"])
+        .arg(dir.path())
+        .assert()
+        .success();
+
+    assert_eq!(
+        fs::read_to_string(&config_path).expect("read config"),
+        original
+    );
+}
+
+#[test]
+fn index_honors_dot_reposcryer_config() {
+    let dir = tempdir().expect("tempdir");
+    fs::create_dir_all(dir.path().join("src")).expect("src");
+    fs::create_dir_all(dir.path().join("generated")).expect("generated");
+    fs::create_dir_all(dir.path().join(".reposcryer")).expect("config dir");
+    fs::write(dir.path().join("src/lib.rs"), "pub fn run() {}\n").expect("rust");
+    fs::write(dir.path().join("src/app.py"), "x=1\n").expect("python");
+    fs::write(
+        dir.path().join("generated/ignored.rs"),
+        "pub fn ignored() {}\n",
+    )
+    .expect("ignored");
+    fs::write(
+        dir.path().join(".reposcryer/config.toml"),
+        r#"
+max_file_size_bytes = 1024
+ignored_dirs = [".git", ".reposcryer", "generated"]
+enabled_languages = ["rust"]
+"#,
+    )
+    .expect("config");
+
+    Command::cargo_bin("reposcryer-cli")
+        .expect("binary")
+        .arg("index")
+        .arg(dir.path())
+        .assert()
+        .success();
+
+    let mut command = Command::cargo_bin("reposcryer-cli").expect("binary");
+    let assert = command.arg("status").arg(dir.path()).assert().success();
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).expect("utf8");
+
+    assert!(stdout.contains("tracked_files: 1"));
+    assert!(stdout.contains("scan_files: 1"));
+    assert!(!stdout.contains("src/app.py"));
+    assert!(!stdout.contains("generated/ignored.rs"));
+}
+
+#[test]
 fn explain_shows_resolved_file_dependencies() {
     let dir = temp_sample_repo();
 

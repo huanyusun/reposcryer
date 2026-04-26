@@ -38,13 +38,13 @@ Goal: make stored graph context directly consumable by agents and scripts.
 
 Goal: make indexing behavior configurable without code changes.
 
-- Implement real `.reposcryer/config.toml` loading.
-- Add `reposcryer config init <path>` or `reposcryer init <path>`.
+- Implement real `.reposcryer/config.toml` loading. Current branch: in progress.
+- Add `reposcryer config init <path>`.
 - Support configured ignored directories.
 - Support configured max file size.
 - Support enabled language filters.
 - Persist config defaults safely without overwriting user edits.
-- Document config schema.
+- Document config schema in `docs/configuration.md`.
 
 ## v0.4: Rust Resolver Fidelity
 

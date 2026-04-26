@@ -7,3 +7,8 @@ license.workspace = true
 [dependencies]
 anyhow.workspace = true
 reposcryer-core = { path = "../reposcryer-core" }
+serde.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

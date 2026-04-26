@@ -3,7 +3,7 @@
 RepoScryer is organized as a Rust workspace with strict responsibility boundaries.
 
 - `reposcryer-core`: shared data model, stable identifiers, index run types, and incremental plan types
-- `reposcryer-config`: runtime configuration defaults and loading interface
+- `reposcryer-config`: `.reposcryer/config.toml` loading, validation, defaults, and default file generation
 - `reposcryer-ingest`: file scanning, filtering, hashing, skip reporting, and language detection
 - `reposcryer-parser`: heuristic language adapters, parser registry, warning conversion, raw imports, and symbol chunks
 - `reposcryer-graph`: Phase 1 export graph assembly from scanned files and parsed output
@@ -13,18 +13,23 @@ RepoScryer is organized as a Rust workspace with strict responsibility boundarie
 
 ## Phase 3 Index Flow
 
-1. Scan the repo root into a `ScanResult`.
-2. Open `.reposcryer/kuzu` through `KuzuGraphStore`.
-3. Initialize schema and create an `IndexRun`.
-4. Compare scanned fingerprints with Kuzu `File` nodes for the current `IndexScope`.
-5. Parse only `Added`, `Modified`, and `ReindexNeeded` files.
-6. Replace each changed file subgraph idempotently.
-7. Soft-delete `Deleted` files.
-8. Rebuild derived `File IMPORTS_FILE File` edges for explicit local imports.
-9. Complete or fail the `IndexRun`.
-10. Write `.reposcryer/state.json` and Phase 1 export artifacts under `.reposcryer/exports`.
+1. Load `.reposcryer/config.toml`, or use defaults if it does not exist.
+2. Scan the repo root into a `ScanResult` using the loaded config.
+3. Open the configured Kuzu output path through `KuzuGraphStore`.
+4. Initialize schema and create an `IndexRun`.
+5. Compare scanned fingerprints with Kuzu `File` nodes for the current `IndexScope`.
+6. Parse only `Added`, `Modified`, and `ReindexNeeded` files.
+7. Replace each changed file subgraph idempotently.
+8. Soft-delete `Deleted` files.
+9. Rebuild derived `File IMPORTS_FILE File` edges for explicit local imports.
+10. Complete or fail the `IndexRun`.
+11. Write `state.json` and Phase 1 export artifacts under the configured output directory.
 
 CLI code does not issue Kuzu queries directly. It orchestrates `reposcryer-ingest`, `reposcryer-parser`, `reposcryer-store`, and `reposcryer-export`.
+
+## Configuration
+
+Config discovery is fixed to `<repo>/.reposcryer/config.toml`. The config crate validates TOML, merges user ignored directories with default safety ignores, and exposes a typed `RepoScryerConfig` to ingest, export, and CLI orchestration. See [configuration.md](configuration.md) for the schema.
 
 ## Store Model
 

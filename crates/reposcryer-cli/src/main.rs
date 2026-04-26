@@ -32,6 +32,10 @@ enum Command {
     Changed {
         path: PathBuf,
     },
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommand,
+    },
     Explain(FileQueryCommand),
     Impact(FileQueryCommand),
     Graph {
@@ -62,6 +66,11 @@ enum GraphCommand {
     Summary(SummaryCommand),
 }
 
+#[derive(Subcommand, Debug)]
+enum ConfigCommand {
+    Init(ConfigInitCommand),
+}
+
 #[derive(Args, Debug)]
 struct FileQueryCommand {
     path: PathBuf,
@@ -77,6 +86,13 @@ struct SummaryCommand {
     json: bool,
 }
 
+#[derive(Args, Debug)]
+struct ConfigInitCommand {
+    path: PathBuf,
+    #[arg(long)]
+    force: bool,
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -84,6 +100,9 @@ fn main() -> Result<()> {
         Command::Index(command) => run_index(&command.path, command.full, command.refresh),
         Command::Status { path } => run_status(&path),
         Command::Changed { path } => run_changed(&path),
+        Command::Config {
+            command: ConfigCommand::Init(command),
+        } => run_config_init(&command.path, command.force),
         Command::Explain(command) => run_explain(&command.path, &command.file, command.json),
         Command::Impact(command) => run_impact(&command.path, &command.file, command.json),
         Command::Graph {
@@ -114,6 +133,17 @@ fn main() -> Result<()> {
             Ok(())
         }
     }
+}
+
+fn run_config_init(path: &Path, force: bool) -> Result<()> {
+    let written = RepoScryerConfig::write_default_file(path, force)?;
+    let config_path = RepoScryerConfig::config_path(path);
+    if written {
+        println!("created {}", config_path.display());
+    } else {
+        println!("exists {}", config_path.display());
+    }
+    Ok(())
 }
 
 fn run_index(path: &Path, full: bool, refresh: bool) -> Result<()> {
@@ -408,15 +438,9 @@ fn write_runtime_files(
     status: &str,
     stats: &IndexStats,
 ) -> Result<()> {
+    RepoScryerConfig::write_default_file(path, false)?;
     let output_dir = path.join(&config.output_dir);
     std::fs::create_dir_all(&output_dir)?;
-    std::fs::write(
-        output_dir.join("config.toml"),
-        format!(
-            "output_dir = \"{}\"\nmax_file_size_bytes = {}\n",
-            config.output_dir, config.max_file_size_bytes
-        ),
-    )?;
     let state_path = output_dir.join("state.json");
     std::fs::write(
         state_path,

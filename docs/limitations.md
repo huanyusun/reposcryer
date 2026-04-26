@@ -13,7 +13,8 @@ Phase 3 trades feature breadth for a durable Kuzu-backed indexing core plus reli
 - Project, worktree, and scope IDs are persisted, and file IDs are scope-bound. Branch-aware and workspace-aware scope selection is not yet implemented.
 - `reposcryer index --refresh` currently validates and records a run without reparsing changed files.
 - Configured ignored directories and unsupported languages are silently omitted from scans; `Skipped` currently reports binary and oversized files to avoid noisy `.reposcryer` self-reporting.
-- `RepoScryerConfig::from_path` is a placeholder interface that currently returns defaults.
+- Config discovery is fixed to `<repo>/.reposcryer/config.toml`. A custom `output_dir` changes runtime output locations but does not move the config file path.
+- Configured `ignored_dirs` are merged with default safety ignores. RepoScryer does not currently support removing `.git` or `.reposcryer` from the ignored directory set.
 - Kuzu transaction support is not used yet; Phase 3 uses idempotent per-file replacement plus `IndexRun` status for recovery.
 - Kuzu database access should be treated as single-process in the current CLI. Running multiple RepoScryer commands against the same `.reposcryer/kuzu/db` concurrently can hit Kuzu file locks.
 - Kuzu store connections currently cap `max_db_size` at 16 GiB and use one query thread to keep local and CI runs stable. Large-repo tuning is deferred.
