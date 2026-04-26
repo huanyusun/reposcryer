@@ -14,7 +14,7 @@ The project is intentionally staged: graph correctness and agent-friendly query 
 - Heuristic parsers for Rust, Python, JavaScript, TypeScript, Java, and Go
 - Kuzu-backed `GraphStore` for schema initialization, file fingerprints, index runs, and file subgraph replacement
 - Incremental `index`, `status`, `changed`, and `graph rebuild` CLI flows
-- Kuzu-backed file dependency edges for explicit Rust `mod` and local `use` imports
+- Kuzu-backed file dependency edges for explicit Rust `mod`, `pub mod`, and local `use` imports, including conservative `crate::`, `self::`, and `super::` paths
 - `explain` CLI flow for stored file context, symbols, raw imports, resolved file dependencies, and warnings
 - Export of `graph.json`, `symbols.json`, `repo-map.md`, and `warnings.json`
 

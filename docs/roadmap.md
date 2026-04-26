@@ -38,7 +38,7 @@ Goal: make stored graph context directly consumable by agents and scripts.
 
 Goal: make indexing behavior configurable without code changes.
 
-- Implement real `.reposcryer/config.toml` loading. Current branch: in progress.
+- Implement real `.reposcryer/config.toml` loading.
 - Add `reposcryer config init <path>`.
 - Support configured ignored directories.
 - Support configured max file size.
@@ -50,10 +50,10 @@ Goal: make indexing behavior configurable without code changes.
 
 Goal: make Rust file dependency edges more reliable while staying file-level.
 
-- Support `self::` and `super::` module paths.
-- Improve nested module resolution.
+- Support `self::` and `super::` module paths. Current branch: in progress.
+- Improve nested module resolution with deepest-prefix matching.
 - Improve `mod.rs`, `lib.rs`, and `main.rs` handling.
-- Detect and ignore standard library and external crate imports more explicitly.
+- Detect and ignore standard library imports explicitly.
 - Add richer Rust resolver fixtures.
 - Keep `IMPORTS_FILE` evidence explicit and conservative.
 
