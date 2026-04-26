@@ -9,23 +9,80 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
+  build:
+    name: Build ${{ matrix.artifact }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - artifact: linux-x86_64
+            os: ubuntu-latest
+            archive: reposcryer-linux-x86_64.tar.gz
+            package: tar
+            binary: reposcryer-cli
+          - artifact: macos-x86_64
+            os: macos-13
+            archive: reposcryer-macos-x86_64.tar.gz
+            package: tar
+            binary: reposcryer-cli
+          - artifact: macos-aarch64
+            os: macos-14
+            archive: reposcryer-macos-aarch64.tar.gz
+            package: tar
+            binary: reposcryer-cli
+          - artifact: windows-x86_64
+            os: windows-latest
+            archive: reposcryer-windows-x86_64.zip
+            package: zip
+            binary: reposcryer-cli.exe
     steps:
       - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.artifact }}
 
       - name: Build release binary
         run: cargo build --release -p reposcryer-cli
 
-      - name: Package binary
+      - name: Package Unix-like binary
+        if: matrix.package == 'tar'
+        shell: bash
         run: |
           mkdir -p dist
-          cp target/release/reposcryer-cli dist/reposcryer
-          tar -C dist -czf reposcryer-linux-x86_64.tar.gz reposcryer
+          cp "target/release/${{ matrix.binary }}" dist/reposcryer
+          chmod +x dist/reposcryer
+          tar -C dist -czf "${{ matrix.archive }}" reposcryer
+
+      - name: Package Windows binary
+        if: matrix.package == 'zip'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item "target/release/${{ matrix.binary }}" "dist/reposcryer.exe"
+          Compress-Archive -Path "dist/reposcryer.exe" -DestinationPath "${{ matrix.archive }}" -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.archive }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
 
       - name: Create GitHub release for this main commit
         env:
@@ -41,7 +98,7 @@ jobs:
           git tag "$TAG" "$GITHUB_SHA"
           git push origin "$TAG"
           gh release create "$TAG" \
-            reposcryer-linux-x86_64.tar.gz \
+            release-assets/* \
             --target "$GITHUB_SHA" \
             --title "RepoScryer ${VERSION} (${SHORT_SHA})" \
             --notes "Automated release from main commit ${GITHUB_SHA}."
