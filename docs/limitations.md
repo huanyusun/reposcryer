@@ -9,6 +9,8 @@ Phase 3 trades feature breadth for a durable Kuzu-backed indexing core plus reli
 - Rust dependency resolution is heuristic and path-based. It does not run `rustc`, expand macros, evaluate `cfg`, resolve Cargo workspace packages, or parse complex grouped imports such as `use crate::{a, b};`.
 - Rust resolver support is intentionally file-level. It resolves indexed module file paths, not item-level definitions inside those files.
 - `reposcryer impact` is file-level reverse dependency analysis. It reports files that may be affected through resolved imports, not guaranteed runtime behavior.
+- `reposcryer context --budget` is an approximate character budget, not a tokenizer-backed budget.
+- Context packs include deterministic excerpts and graph data only. They do not summarize semantically, call an LLM, use embeddings, or perform RAG.
 - `EdgeKind::Calls` exists in the model but is intentionally not emitted in Phase 3.
 - File-level incremental indexing does not yet rebuild inbound weak references from other files when one file changes.
 - Project, worktree, and scope IDs are persisted, and file IDs are scope-bound. Branch-aware and workspace-aware scope selection is not yet implemented.

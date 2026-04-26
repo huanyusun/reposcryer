@@ -425,3 +425,76 @@ fn impact_json_outputs_structured_impacted_files() {
             .any(|file| file["relative_path"] == "src/main.rs" && file["depth"] == 1)
     );
 }
+
+#[test]
+fn context_outputs_markdown_pack_for_file() {
+    let dir = temp_sample_repo();
+
+    Command::cargo_bin("reposcryer-cli")
+        .expect("binary")
+        .arg("index")
+        .arg(dir.path())
+        .assert()
+        .success();
+
+    let mut command = Command::cargo_bin("reposcryer-cli").expect("binary");
+    let assert = command
+        .arg("context")
+        .arg(dir.path())
+        .arg("--file")
+        .arg("src/main.rs")
+        .arg("--mode")
+        .arg("change-plan")
+        .arg("--budget")
+        .arg("1200")
+        .assert()
+        .success();
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).expect("utf8");
+
+    assert!(stdout.contains("# RepoScryer Context Pack"));
+    assert!(stdout.contains("- mode: change-plan"));
+    assert!(stdout.contains("- target: src/main.rs"));
+    assert!(stdout.contains("## Outgoing Dependencies"));
+    assert!(stdout.contains("src/auth.rs"));
+    assert!(stdout.contains("## Repo Map Excerpt"));
+}
+
+#[test]
+fn context_json_outputs_structured_context_pack() {
+    let dir = temp_sample_repo();
+
+    Command::cargo_bin("reposcryer-cli")
+        .expect("binary")
+        .arg("index")
+        .arg(dir.path())
+        .assert()
+        .success();
+
+    let mut command = Command::cargo_bin("reposcryer-cli").expect("binary");
+    let assert = command
+        .arg("context")
+        .arg(dir.path())
+        .arg("--file")
+        .arg("src/auth.rs")
+        .arg("--json")
+        .assert()
+        .success();
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).expect("utf8");
+    let value: Value = serde_json::from_str(&stdout).expect("valid json");
+
+    assert_eq!(value["target_file"], "src/auth.rs");
+    assert_eq!(value["mode"], "explain");
+    assert!(
+        value["impacted_files"]
+            .as_array()
+            .expect("impacted files array")
+            .iter()
+            .any(|file| file == "src/main.rs")
+    );
+    assert!(
+        value["source_excerpt"]
+            .as_str()
+            .expect("source")
+            .contains("AuthService")
+    );
+}

@@ -8,6 +8,7 @@ license.workspace = true
 anyhow.workspace = true
 clap.workspace = true
 reposcryer-config = { path = "../reposcryer-config" }
+reposcryer-context = { path = "../reposcryer-context" }
 reposcryer-core = { path = "../reposcryer-core" }
 reposcryer-export = { path = "../reposcryer-export" }
 reposcryer-graph = { path = "../reposcryer-graph" }

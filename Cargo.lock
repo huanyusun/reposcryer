@@ -667,6 +667,7 @@ dependencies = [
  "assert_cmd",
  "clap",
  "reposcryer-config",
+ "reposcryer-context",
  "reposcryer-core",
  "reposcryer-export",
  "reposcryer-graph",
@@ -686,6 +687,15 @@ dependencies = [
  "serde",
  "tempfile",
  "toml",
+]
+
+[[package]]
+name = "reposcryer-context"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "reposcryer-core",
+ "serde",
 ]
 
 [[package]]

@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use reposcryer_config::RepoScryerConfig;
+use reposcryer_context::{ContextInput, ContextMode, build_context_pack, render_markdown};
 use reposcryer_core::{
     FileChangeKind, IndexContext, IndexStats, RepoIndex, RepoStatus, project_id_from_repo,
     scope_id_from_path, worktree_id_from_path,
@@ -36,6 +37,7 @@ enum Command {
         #[command(subcommand)]
         command: ConfigCommand,
     },
+    Context(ContextCommand),
     Explain(FileQueryCommand),
     Impact(FileQueryCommand),
     Graph {
@@ -93,6 +95,19 @@ struct ConfigInitCommand {
     force: bool,
 }
 
+#[derive(Args, Debug)]
+struct ContextCommand {
+    path: PathBuf,
+    #[arg(long)]
+    file: PathBuf,
+    #[arg(long, default_value = "explain")]
+    mode: String,
+    #[arg(long, default_value_t = 4000)]
+    budget: usize,
+    #[arg(long)]
+    json: bool,
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -103,6 +118,13 @@ fn main() -> Result<()> {
         Command::Config {
             command: ConfigCommand::Init(command),
         } => run_config_init(&command.path, command.force),
+        Command::Context(command) => run_context(
+            &command.path,
+            &command.file,
+            &command.mode,
+            command.budget,
+            command.json,
+        ),
         Command::Explain(command) => run_explain(&command.path, &command.file, command.json),
         Command::Impact(command) => run_impact(&command.path, &command.file, command.json),
         Command::Graph {
@@ -219,6 +241,46 @@ fn run_changed(path: &Path) -> Result<()> {
             change.kind.as_str(),
             change.relative_path.display()
         );
+    }
+    Ok(())
+}
+
+fn run_context(
+    path: &Path,
+    file: &Path,
+    mode: &str,
+    budget: usize,
+    json_output: bool,
+) -> Result<()> {
+    let config = RepoScryerConfig::from_path(path)?;
+    let scan = scan_repo(path, &config)?;
+    let ctx = index_context(&scan.repo_root);
+    let store = store_for_root(&scan.repo_root, &config);
+    let explanation = store
+        .explain_file(&ctx, file)?
+        .ok_or_else(|| anyhow::anyhow!("file is not indexed: {}", file.display()))?;
+    let neighbors = store
+        .file_neighbors(&ctx, file)?
+        .ok_or_else(|| anyhow::anyhow!("file is not indexed: {}", file.display()))?;
+    let impact = store
+        .file_impact(&ctx, file)?
+        .ok_or_else(|| anyhow::anyhow!("file is not indexed: {}", file.display()))?;
+    let source = read_context_source(&scan, file)?;
+    let repo_map = read_repo_map_for_config(&scan.repo_root, &config).unwrap_or_default();
+    let pack = build_context_pack(ContextInput {
+        mode: parse_context_mode(mode)?,
+        budget,
+        explanation,
+        neighbors,
+        impact,
+        source,
+        repo_map,
+    })?;
+
+    if json_output {
+        println!("{}", serde_json::to_string_pretty(&pack)?);
+    } else {
+        print!("{}", render_markdown(&pack));
     }
     Ok(())
 }
@@ -420,6 +482,39 @@ fn index_context(root: &Path) -> IndexContext {
 
 fn store_for_root(root: &Path, config: &RepoScryerConfig) -> KuzuGraphStore {
     KuzuGraphStore::new(root.join(&config.output_dir).join("kuzu").join("db"))
+}
+
+fn parse_context_mode(mode: &str) -> Result<ContextMode> {
+    match mode {
+        "explain" => Ok(ContextMode::Explain),
+        "change-plan" => Ok(ContextMode::ChangePlan),
+        "review" => Ok(ContextMode::Review),
+        other => Err(anyhow::anyhow!(
+            "unsupported context mode {other}; expected explain, change-plan, or review"
+        )),
+    }
+}
+
+fn read_context_source(scan: &reposcryer_core::ScanResult, file: &Path) -> Result<String> {
+    let requested = normalize_relative_path(file);
+    let scanned_file = scan
+        .files
+        .iter()
+        .find(|candidate| normalize_relative_path(&candidate.relative_path) == requested)
+        .ok_or_else(|| anyhow::anyhow!("file is not in current scan: {}", file.display()))?;
+    read_source(scanned_file)
+}
+
+fn read_repo_map_for_config(root: &Path, config: &RepoScryerConfig) -> Result<String> {
+    Ok(std::fs::read_to_string(
+        root.join(&config.output_dir)
+            .join("exports")
+            .join("repo-map.md"),
+    )?)
+}
+
+fn normalize_relative_path(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
 }
 
 fn reset_kuzu_dir(root: &Path, config: &RepoScryerConfig) -> Result<()> {
