@@ -19,6 +19,7 @@ Allowed in this phase:
 - file-level graph neighbors query
 - Kuzu-backed graph summary query
 - file-level impact analysis based only on reverse `IMPORTS_FILE` traversal
+- deterministic context pack generation without LLM calls
 - documentation and tests for graph enhancement limitations
 
 Still forbidden in this phase:
@@ -100,6 +101,7 @@ cargo run -p reposcryer-cli -- explain examples/sample-rust-project src/main.rs
 cargo run -p reposcryer-cli -- graph neighbors examples/sample-rust-project src/main.rs
 cargo run -p reposcryer-cli -- graph summary examples/sample-rust-project
 cargo run -p reposcryer-cli -- impact examples/sample-rust-project src/auth.rs
+cargo run -p reposcryer-cli -- context examples/sample-rust-project --file src/main.rs
 cargo run -p reposcryer-cli -- graph rebuild examples/sample-rust-project
 ```
 
@@ -108,6 +110,7 @@ When adding or changing behavior, update the relevant docs:
 - README.md
 - docs/architecture.md
 - docs/kuzu-store.md
+- docs/context-pack.md
 - docs/parser-design.md
 - docs/limitations.md
 - docs/roadmap.md

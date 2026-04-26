@@ -16,6 +16,7 @@ The project is intentionally staged: graph correctness and agent-friendly query 
 - Incremental `index`, `status`, `changed`, and `graph rebuild` CLI flows
 - Kuzu-backed file dependency edges for explicit Rust `mod`, `pub mod`, and local `use` imports, including conservative `crate::`, `self::`, and `super::` paths
 - `explain` CLI flow for stored file context, symbols, raw imports, resolved file dependencies, and warnings
+- Deterministic `context` packs for agent workflows, with Markdown and JSON output
 - Export of `graph.json`, `symbols.json`, `repo-map.md`, and `warnings.json`
 
 ## Project Direction
@@ -60,6 +61,7 @@ cargo run -p reposcryer-cli -- explain examples/sample-rust-project src/main.rs
 cargo run -p reposcryer-cli -- graph neighbors examples/sample-rust-project src/main.rs
 cargo run -p reposcryer-cli -- graph summary examples/sample-rust-project
 cargo run -p reposcryer-cli -- impact examples/sample-rust-project src/auth.rs
+cargo run -p reposcryer-cli -- context examples/sample-rust-project --file src/main.rs
 cargo run -p reposcryer-cli -- graph rebuild examples/sample-rust-project
 ```
 
@@ -81,6 +83,9 @@ reposcryer graph summary <path>
 reposcryer graph summary <path> --json
 reposcryer impact <path> <file>
 reposcryer impact <path> <file> --json
+reposcryer context <path> --file <file>
+reposcryer context <path> --file <file> --json
+reposcryer context <path> --file <file> --mode change-plan --budget 4000
 reposcryer graph rebuild <path>
 reposcryer map <path>
 reposcryer inspect <path>
@@ -101,4 +106,4 @@ Release artifact names:
 
 Phase 3 does not implement RAG, workspace multi-project management, Web UI, MCP, embeddings, SQLite, or Tantivy. `EdgeKind::Calls` remains a model variant only; RepoScryer does not emit call graph edges without reliable evidence.
 
-See [docs/configuration.md](docs/configuration.md), [docs/kuzu-store.md](docs/kuzu-store.md), [docs/architecture.md](docs/architecture.md), [docs/roadmap.md](docs/roadmap.md), [docs/development-roadmap.md](docs/development-roadmap.md), and [docs/limitations.md](docs/limitations.md) for detail.
+See [docs/context-pack.md](docs/context-pack.md), [docs/configuration.md](docs/configuration.md), [docs/kuzu-store.md](docs/kuzu-store.md), [docs/architecture.md](docs/architecture.md), [docs/roadmap.md](docs/roadmap.md), [docs/development-roadmap.md](docs/development-roadmap.md), and [docs/limitations.md](docs/limitations.md) for detail.

@@ -50,7 +50,7 @@ Goal: make indexing behavior configurable without code changes.
 
 Goal: make Rust file dependency edges more reliable while staying file-level.
 
-- Support `self::` and `super::` module paths. Current branch: in progress.
+- Support `self::` and `super::` module paths.
 - Improve nested module resolution with deepest-prefix matching.
 - Improve `mod.rs`, `lib.rs`, and `main.rs` handling.
 - Detect and ignore standard library imports explicitly.
@@ -61,10 +61,10 @@ Goal: make Rust file dependency edges more reliable while staying file-level.
 
 Goal: generate low-token context bundles for AI coding agents.
 
-- Add `reposcryer context <path> --file <file>`.
+- Add `reposcryer context <path> --file <file>`. Current branch: in progress.
 - Support Markdown and JSON output.
 - Include target file explanation, nearby dependencies, reverse impact, symbols, warnings, and repo map excerpts.
-- Add token budget controls such as `--budget 4000`.
+- Add approximate budget controls such as `--budget 4000`.
 - Add context modes such as `explain`, `change-plan`, and `review`.
 - Do not add embeddings or RAG in this phase.
 

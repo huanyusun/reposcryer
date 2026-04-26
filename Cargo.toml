@@ -2,6 +2,7 @@
 members = [
     "crates/reposcryer-cli",
     "crates/reposcryer-config",
+    "crates/reposcryer-context",
     "crates/reposcryer-core",
     "crates/reposcryer-export",
     "crates/reposcryer-graph",

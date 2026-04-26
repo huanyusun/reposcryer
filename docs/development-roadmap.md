@@ -110,6 +110,8 @@ Acceptance:
 
 Branch: `codex/context-pack`
 
+Status: in progress.
+
 Scope:
 
 - Add `reposcryer context <path> --file <file>`.
