@@ -9,6 +9,7 @@ The project is intentionally staged: graph correctness and agent-friendly query 
 ## Current Capabilities
 
 - Rust workspace with focused crate boundaries
+- `.reposcryer/config.toml` loading with safe default generation
 - Repo scan with ignore rules, language detection, and file fingerprints
 - Heuristic parsers for Rust, Python, JavaScript, TypeScript, Java, and Go
 - Kuzu-backed `GraphStore` for schema initialization, file fingerprints, index runs, and file subgraph replacement
@@ -70,6 +71,8 @@ reposcryer index <path> --full
 reposcryer index <path> --refresh
 reposcryer status <path>
 reposcryer changed <path>
+reposcryer config init <path>
+reposcryer config init <path> --force
 reposcryer explain <path> <file>
 reposcryer explain <path> <file> --json
 reposcryer graph neighbors <path> <file>
@@ -98,4 +101,4 @@ Release artifact names:
 
 Phase 3 does not implement RAG, workspace multi-project management, Web UI, MCP, embeddings, SQLite, or Tantivy. `EdgeKind::Calls` remains a model variant only; RepoScryer does not emit call graph edges without reliable evidence.
 
-See [docs/kuzu-store.md](docs/kuzu-store.md), [docs/architecture.md](docs/architecture.md), [docs/roadmap.md](docs/roadmap.md), [docs/development-roadmap.md](docs/development-roadmap.md), and [docs/limitations.md](docs/limitations.md) for detail.
+See [docs/configuration.md](docs/configuration.md), [docs/kuzu-store.md](docs/kuzu-store.md), [docs/architecture.md](docs/architecture.md), [docs/roadmap.md](docs/roadmap.md), [docs/development-roadmap.md](docs/development-roadmap.md), and [docs/limitations.md](docs/limitations.md) for detail.

@@ -72,11 +72,13 @@ Acceptance:
 
 Branch: `codex/config-loading`
 
+Status: in progress.
+
 Scope:
 
 - Implement `.reposcryer/config.toml` parsing.
 - Add config defaults and validation.
-- Add `reposcryer init <path>` or `reposcryer config init <path>`.
+- Add `reposcryer config init <path>`.
 - Add tests for missing, valid, and invalid config.
 
 Acceptance:

@@ -198,4 +198,39 @@ mod tests {
         assert_eq!(scan.files.len(), 1);
         assert_eq!(scan.files[0].fingerprint.sha256.len(), 64);
     }
+
+    #[test]
+    fn honors_configured_ignored_dirs_size_limit_and_languages() {
+        let dir = tempdir().expect("tempdir");
+        let root = dir.path();
+        fs::create_dir_all(root.join("src")).expect("src");
+        fs::create_dir_all(root.join("generated")).expect("generated");
+        fs::write(root.join("src/lib.rs"), "pub fn run() {}\n").expect("write rust");
+        fs::write(root.join("src/app.py"), "x=1\n").expect("write python");
+        fs::write(root.join("src/large.rs"), "pub fn run_large() {}\n").expect("write large");
+        fs::write(root.join("generated/ignored.rs"), "pub fn generated() {}\n")
+            .expect("write ignored");
+
+        let config = RepoScryerConfig {
+            ignored_dirs: vec!["generated".to_string()],
+            max_file_size_bytes: 18,
+            enabled_languages: vec![Language::Rust],
+            ..RepoScryerConfig::default()
+        };
+
+        let scan = scan_repo(root, &config).expect("scan succeeds");
+        let names: Vec<_> = scan
+            .files
+            .iter()
+            .map(|file| file.relative_path.to_string_lossy().to_string())
+            .collect();
+
+        assert_eq!(names, ["src/lib.rs"]);
+        assert_eq!(scan.skipped_files.len(), 1);
+        assert_eq!(
+            scan.skipped_files[0].relative_path,
+            PathBuf::from("src/large.rs")
+        );
+        assert_eq!(scan.skipped_files[0].reason, "oversized");
+    }
 }
