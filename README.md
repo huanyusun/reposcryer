@@ -85,7 +85,14 @@ reposcryer inspect <path>
 
 ## Development Workflow
 
-All changes should be made on a feature branch and opened as a pull request into `main`. CI runs Rust formatting, clippy, tests, sample CLI commands, and a guard against fake call graph output. Merges to `main` create an automated GitHub release. See [CONTRIBUTING.md](CONTRIBUTING.md).
+All changes should be made on a feature branch and opened as a pull request into `main`. CI runs Rust formatting, clippy, tests, sample CLI commands, and a guard against fake call graph output. Merges to `main` create an automated GitHub release with Linux, macOS, and Windows CLI artifacts. Linux and macOS artifacts are Unix-like `tar.gz` packages; Windows is published as a `zip`. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Release artifact names:
+
+- `reposcryer-linux-x86_64.tar.gz`
+- `reposcryer-macos-x86_64.tar.gz`
+- `reposcryer-macos-aarch64.tar.gz`
+- `reposcryer-windows-x86_64.zip`
 
 ## Current Boundaries
 

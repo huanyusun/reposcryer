@@ -21,7 +21,7 @@ Status: current PR baseline.
 - Soft delete for deleted files.
 - CLI: `index`, `status`, `changed`, `graph rebuild`.
 - Phase 3 starter graph queries: `explain`, `graph neighbors`, `impact`.
-- CI and automated release workflow.
+- CI and automated release workflow with Linux, macOS, and Windows packages.
 
 ## v0.2: Agent-Friendly Query API
 
@@ -115,7 +115,7 @@ Goal: stabilize the project for broader usage.
 
 - Harden Kuzu concurrency and lock behavior.
 - Add migration strategy beyond rebuild-only schema changes.
-- Add packaged binary release matrix.
+- Harden packaged binary release coverage beyond the initial Linux, macOS, and Windows matrix if needed.
 - Add workspace and multi-project management only after single-repo behavior is stable.
 - Evaluate MCP adapter and Web UI as wrappers around existing stable APIs.
 
