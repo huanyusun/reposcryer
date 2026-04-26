@@ -154,7 +154,7 @@ Acceptance:
 
 ## Release Milestones
 
-- `v0.1`: baseline Kuzu index, incremental indexing, Phase 1 exports, file dependency graph, query commands, CI/release.
+- `v0.1`: baseline Kuzu index, incremental indexing, Phase 1 exports, file dependency graph, query commands, CI/release with Linux, macOS, and Windows artifacts.
 - `v0.2`: JSON query API and graph summary.
 - `v0.3`: real config loading.
 - `v0.4`: Rust resolver fidelity.

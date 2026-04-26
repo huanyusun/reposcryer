@@ -30,4 +30,11 @@ cargo run -p reposcryer-cli -- graph rebuild examples/sample-rust-project
 
 Merges to `main` run CI and then create an automated GitHub release from the merged commit.
 
-The current release workflow builds the `reposcryer-cli` binary for Linux x86_64 and publishes it as a GitHub release artifact. Broader target matrices can be added later.
+The release workflow builds `reposcryer-cli` for Linux x86_64, macOS x86_64, macOS aarch64, and Windows x86_64. Linux and macOS are published as Unix-like `tar.gz` packages; Windows is published as a `zip`.
+
+Published artifacts:
+
+- `reposcryer-linux-x86_64.tar.gz`
+- `reposcryer-macos-x86_64.tar.gz`
+- `reposcryer-macos-aarch64.tar.gz`
+- `reposcryer-windows-x86_64.zip`
